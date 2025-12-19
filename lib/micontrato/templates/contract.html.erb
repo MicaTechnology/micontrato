@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= @contract.name %> - Preview</title>
+  <style>
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      max-width: 8.5in;
+      margin: 0 auto;
+      padding: 1in;
+      background: white;
+      font-size: 12pt;
+      line-height: 1.5;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 18pt;
+      font-weight: bold;
+      margin-bottom: 30px;
+      text-transform: uppercase;
+    }
+
+    .cover-section {
+      margin-bottom: 30px;
+      page-break-inside: avoid;
+    }
+
+    .cover-section-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #000;
+    }
+
+    .cover-section-header {
+      background-color: #e0e0e0;
+      font-size: 11pt;
+      font-weight: bold;
+      padding: 8px 12px;
+      border: 1px solid #000;
+      text-align: left;
+    }
+
+    .cover-field-row {
+      border: 1px solid #000;
+    }
+
+    .cover-field-label {
+      font-weight: bold;
+      font-size: 10pt;
+      padding: 8px 12px;
+      border: 1px solid #000;
+      width: 50%;
+      vertical-align: top;
+    }
+
+    .cover-field-value {
+      padding: 8px 12px;
+      border: 1px solid #000;
+      width: 50%;
+      vertical-align: top;
+    }
+
+    .clauses-section {
+      margin-top: 40px;
+    }
+
+    .clause {
+      margin-bottom: 25px;
+      page-break-inside: avoid;
+      text-align: justify;
+    }
+
+    .clause p {
+      margin: 10px 0;
+    }
+
+    .clause ul, .clause ol {
+      margin: 10px 0;
+      padding-left: 30px;
+    }
+
+    /* Quill alignment classes */
+    .ql-align-left {
+      text-align: left;
+    }
+
+    .ql-align-center {
+      text-align: center;
+    }
+
+    .ql-align-right {
+      text-align: right;
+    }
+
+    .ql-align-justify {
+      text-align: justify;
+    }
+
+    /* Quill indent classes */
+    .ql-indent-1 {
+      padding-left: 3em;
+    }
+
+    .ql-indent-2 {
+      padding-left: 6em;
+    }
+
+    .ql-indent-3 {
+      padding-left: 9em;
+    }
+
+    .ql-indent-4 {
+      padding-left: 12em;
+    }
+
+    .ql-indent-5 {
+      padding-left: 15em;
+    }
+
+    .ql-indent-6 {
+      padding-left: 18em;
+    }
+
+    .ql-indent-7 {
+      padding-left: 21em;
+    }
+
+    .ql-indent-8 {
+      padding-left: 24em;
+    }
+
+    /* Table styles */
+    .clause table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 10px 0;
+    }
+
+    .clause table td,
+    .clause table th {
+      border: 1px solid #000;
+      padding: 10px;
+      vertical-align: top;
+      min-width: 100px;
+    }
+
+    .clause table th {
+      font-weight: bold;
+      background: #f5f5f5;
+    }
+
+    .contract-info {
+      text-align: center;
+      font-size: 10pt;
+      color: #666;
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 1px solid #ccc;
+    }
+
+    @media print {
+      body {
+        padding: 0;
+      }
+      .contract-info {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1><%= @contract.name %></h1>
+
+  <!-- Cover Sections -->
+  <% @cover_sections.each do |section| %>
+    <div class="cover-section">
+      <table class="cover-section-table">
+        <thead>
+          <tr>
+            <th colspan="2" class="cover-section-header"><%= section.name %></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if section.cover_fields.is_a?(Array) %>
+            <% section.cover_fields.each do |field| %>
+              <% next if field['is_hidden'] %>
+              <tr class="cover-field-row">
+                <td class="cover-field-label"><%= field['label'] %></td>
+                <td class="cover-field-value">
+                  <%= evaluate_field_value(field, @mica_rent) %>
+                  <% if field['is_editable'] && @show_admin_info %>
+                    <span style="color: #999; font-size: 9pt; margin-left: 10px;">(editable)</span>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+
+  <!-- Clauses Section -->
+  <div class="clauses-section">
+    <% if @clauses.any? %>
+      <%
+        # Calculate ordinals for clauses with show_title: true
+        visible_clauses = @clauses.select(&:show_title)
+        ordinal_map = {}
+        visible_clauses.each_with_index do |clause, index|
+          ordinal_map[clause.id] = index + 1
+        end
+      %>
+      <% @clauses.each do |clause| %>
+        <div class="clause"<% if @show_admin_info %> style="position: relative; margin-bottom: 25px; border-left: 3px solid <%= clause.is_editable ? '#3b82f6' : clause.allow_comments ? '#10b981' : '#9ca3af' %>; padding-left: 15px;"<% end %>>
+          <!-- Admin info indicators (only shown in preview mode) -->
+          <% if @show_admin_info %>
+            <div style="position: absolute; top: 0; left: calc(100% + 15px); display: flex; flex-direction: column; gap: 5px; width: 120px; font-size: 9pt;">
+              <% if clause.is_editable %>
+                <span style="color: #3b82f6; font-weight: bold; padding: 4px 8px; background: #dbeafe; border-radius: 4px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.1);" title="Editable by Contract Admins">✏️ Editable</span>
+              <% end %>
+              <% if clause.allow_comments %>
+                <span style="color: #10b981; font-weight: bold; padding: 4px 8px; background: #d1fae5; border-radius: 4px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.1);" title="Allows Comments">💬 Commentable</span>
+              <% end %>
+              <% unless clause.show_title %>
+                <span style="color: #ef4444; font-weight: bold; padding: 4px 8px; background: #fee2e2; border-radius: 4px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.1);" title="Title Hidden">🚫 Hidden Title</span>
+              <% end %>
+              <span style="color: #6b7280; font-size: 8pt; padding: 4px 8px; background: #f3f4f6; border-radius: 4px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">Pos: <%= clause.position %></span>
+            </div>
+          <% end %>
+
+          <!-- Clause content -->
+          <%
+            # Build the title HTML if clause should show title
+            title_html = if clause.show_title && ordinal_map[clause.id]
+              ordinal = spanish_ordinal(ordinal_map[clause.id])
+              "<strong>#{ordinal}.- #{clause.title}.</strong> "
+            else
+              ""
+            end
+
+            # Inject title inline with text (inside first <p> tag if present)
+            clause_content = if title_html.present?
+              if clause.text.include?('<p')
+                # Inject title after the first <p> opening tag
+                clause.text.sub(/<p[^>]*>/i) { |match| "#{match}#{title_html}" }
+              else
+                # Otherwise, prepend title
+                title_html + clause.text
+              end
+            else
+              clause.text
+            end
+          %>
+          <%= clause_content %>
+        </div>
+      <% end %>
+    <% else %>
+      <div style="text-align: center; padding: 40px; background: #f9f9f9; border: 1px dashed #ccc;">
+        <p style="color: #666; margin: 0;">No clauses have been added yet.</p>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Signature Blocks -->
+  <div class="signatures-section" style="margin-top: 60px; page-break-inside: avoid;">
+    <!-- Main parties signature block -->
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
+      <tr>
+        <td style="width: 50%; border: 1px solid #000; padding: 80px 20px 20px 20px; text-align: center; vertical-align: bottom;">
+          <div style="font-weight: bold; font-size: 11pt;">"EL ARRENDATARIO"</div>
+        </td>
+        <td style="width: 50%; border: 1px solid #000; padding: 80px 20px 20px 20px; text-align: center; vertical-align: bottom;">
+          <div style="font-weight: bold; font-size: 11pt;">"EL ARRENDADOR"</div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Joint obligor signature block (only if contract is for joint obligor) -->
+    <% if @contract.for_joint_obligor %>
+      <table style="width: 60%; margin: 0 auto; border-collapse: collapse;">
+        <tr>
+          <td style="border: 1px solid #000; padding: 80px 20px 20px 20px; text-align: center; vertical-align: bottom;">
+            <div style="font-weight: bold; font-size: 11pt;">"EL OBLIGADO SOLIDARIO"</div>
+          </td>
+        </tr>
+      </table>
+    <% end %>
+  </div>
+
+  <% if @show_admin_info %>
+    <div class="contract-info">
+      <p>
+        Contract: <%= @contract.name %><br>
+        <% if @contract.respond_to?(:company) %>
+          Company: <%= @contract.company&.name || 'Global (All Companies)' %><br>
+        <% end %>
+        For Joint Obligor: <%= @contract.for_joint_obligor ? 'Yes' : 'No' %><br>
+        Created: <%= @contract.created_at.strftime('%B %d, %Y') %>
+      </p>
+      <p>
+        <em>This is a preview only. Actual contract values are populated from contract data.</em>
+      </p>
+    </div>
+  <% end %>
+</body>
+</html>
