@@ -27,6 +27,20 @@ module Micontrato
         ordinals[position] || "CLÁUSULA #{position}"
       end
 
+      MICA_RAZON_SOCIAL = 'MCTC PLATAFORMA DE RENTAS, S.A.P.I. DE C.V.'.freeze
+      MICA_REPRESENTANTE_LEGAL = 'JULIAN STASTNY'.freeze
+      MICA_SIGNATURE_LABEL = '"MICA RENT"'.freeze
+
+      GUARANTOR_ROLE_LABELS = {
+        'bondsman' => 'FIADOR',
+        'joint_obligor' => 'OBLIGADO SOLIDARIO',
+        'aval' => 'AVAL'
+      }.freeze
+
+      def guarantor_role_label(guarantor)
+        GUARANTOR_ROLE_LABELS[guarantor&.guarantor_type] || 'OBLIGADO SOLIDARIO'
+      end
+
       def evaluate_field_value(field, mica_rent)
         # If not a dynamic field, just return the display_value as is (static text)
         return field['display_value'] unless field['is_dynamic']
