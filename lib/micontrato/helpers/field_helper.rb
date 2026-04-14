@@ -3,28 +3,34 @@
 module Micontrato
   module Helpers
     module FieldHelper
+      UNITS = {
+        1 => 'PRIMERA', 2 => 'SEGUNDA', 3 => 'TERCERA', 4 => 'CUARTA', 5 => 'QUINTA',
+        6 => 'SEXTA', 7 => 'SÉPTIMA', 8 => 'OCTAVA', 9 => 'NOVENA'
+      }.freeze
+
+      TEENS = {
+        11 => 'UNDÉCIMA', 12 => 'DUODÉCIMA', 13 => 'DECIMOTERCERA', 14 => 'DECIMOCUARTA',
+        15 => 'DECIMOQUINTA', 16 => 'DECIMOSEXTA', 17 => 'DECIMOSÉPTIMA', 18 => 'DECIMOCTAVA',
+        19 => 'DECIMONOVENA'
+      }.freeze
+
+      TENS = {
+        10 => 'DÉCIMA', 20 => 'VIGÉSIMA', 30 => 'TRIGÉSIMA', 40 => 'CUADRAGÉSIMA',
+        50 => 'QUINCUAGÉSIMA', 60 => 'SEXAGÉSIMA', 70 => 'SEPTUAGÉSIMA',
+        80 => 'OCTOGÉSIMA', 90 => 'NONAGÉSIMA'
+      }.freeze
+
       def spanish_ordinal(position)
-        ordinals = {
-          1 => 'PRIMERA', 2 => 'SEGUNDA', 3 => 'TERCERA', 4 => 'CUARTA', 5 => 'QUINTA',
-          6 => 'SEXTA', 7 => 'SÉPTIMA', 8 => 'OCTAVA', 9 => 'NOVENA', 10 => 'DÉCIMA',
-          11 => 'UNDÉCIMA', 12 => 'DUODÉCIMA', 13 => 'DECIMOTERCERA', 14 => 'DECIMOCUARTA',
-          15 => 'DECIMOQUINTA', 16 => 'DECIMOSEXTA', 17 => 'DECIMOSÉPTIMA', 18 => 'DECIMOCTAVA',
-          19 => 'DECIMONOVENA', 20 => 'VIGÉSIMA', 21 => 'VIGÉSIMA PRIMERA', 22 => 'VIGÉSIMA SEGUNDA',
-          23 => 'VIGÉSIMA TERCERA', 24 => 'VIGÉSIMA CUARTA', 25 => 'VIGÉSIMA QUINTA',
-          26 => 'VIGÉSIMA SEXTA', 27 => 'VIGÉSIMA SÉPTIMA', 28 => 'VIGÉSIMA OCTAVA',
-          29 => 'VIGÉSIMA NOVENA', 30 => 'TRIGÉSIMA', 31 => 'TRIGÉSIMA PRIMERA',
-          32 => 'TRIGÉSIMA SEGUNDA', 33 => 'TRIGÉSIMA TERCERA', 34 => 'TRIGÉSIMA CUARTA',
-          35 => 'TRIGÉSIMA QUINTA', 36 => 'TRIGÉSIMA SEXTA', 37 => 'TRIGÉSIMA SÉPTIMA',
-          38 => 'TRIGÉSIMA OCTAVA', 39 => 'TRIGÉSIMA NOVENA', 40 => 'CUADRAGÉSIMA',
-          41 => 'CUADRAGÉSIMA PRIMERA', 42 => 'CUADRAGÉSIMA SEGUNDA', 43 => 'CUADRAGÉSIMA TERCERA',
-          44 => 'CUADRAGÉSIMA CUARTA', 45 => 'CUADRAGÉSIMA QUINTA', 46 => 'CUADRAGÉSIMA SEXTA',
-          47 => 'CUADRAGÉSIMA SÉPTIMA', 48 => 'CUADRAGÉSIMA OCTAVA', 49 => 'CUADRAGÉSIMA NOVENA',
-          50 => 'QUINCUAGÉSIMA', 51 => 'QUINCUAGÉSIMA PRIMERA', 52 => 'QUINCUAGÉSIMA SEGUNDA',
-          53 => 'QUINCUAGÉSIMA TERCERA', 54 => 'QUINCUAGÉSIMA CUARTA', 55 => 'QUINCUAGÉSIMA QUINTA',
-          56 => 'QUINCUAGÉSIMA SEXTA', 57 => 'QUINCUAGÉSIMA SÉPTIMA', 58 => 'QUINCUAGÉSIMA OCTAVA',
-          59 => 'QUINCUAGÉSIMA NOVENA', 60 => 'SEXAGÉSIMA'
-        }
-        ordinals[position] || "CLÁUSULA #{position}"
+        return "CLÁUSULA #{position}" unless position.is_a?(Integer) && position.between?(1, 99)
+        return UNITS[position] if position <= 9
+        return TEENS[position] if position.between?(11, 19)
+
+        tens_part = (position / 10) * 10
+        unit_part = position % 10
+
+        return TENS[tens_part] if unit_part.zero?
+
+        "#{TENS[tens_part]} #{UNITS[unit_part]}"
       end
 
       MICA_RAZON_SOCIAL = 'MCTC PLATAFORMA DE RENTAS, S.A.P.I. DE C.V.'.freeze
