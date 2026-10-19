@@ -43,6 +43,39 @@ html = generator.generate
 render html: html.html_safe, layout: false
 ```
 
+### Signature participants
+
+The signature blocks print the people who actually sign (a legal representative signs for a persona
+moral landlord, an attorney for a persona moral tenant) with their email and phone under the line.
+Resolve them in the host app and pass them per role; a missing role falls back to the names read
+from `mica_rent`:
+
+```ruby
+Micontrato::HtmlGenerator.new(
+  contract: contract,
+  mica_rent: mica_rent,
+  signature_participants: {
+    tenant: { name: 'Alberto Cecias', email: 'alberto@example.com', phone: '52 9995124291', role: 'ARRENDATARIO' },
+    landlord: { name: 'Juan Carlos Villareal', email: 'juan@example.com', phone: '52 9995124291', role: 'ARRENDADOR' },
+    guarantor: { name: 'Pedro Páramo', email: 'pedro@example.com', phone: '52 5512345678', role: 'OBLIGADO SOLIDARIO' }, # or nil
+    client: { name: 'Juan Carlos Villareal', email: 'juan@example.com', phone: '52 9995124291', subtitle: 'POR SU PROPIO DERECHO' },
+    mica: { name: 'Julian Stastny', company: 'MCTC PLATAFORMA DE RENTAS, S.A.P.I. DE C.V.' }
+  }
+).generate
+```
+
+### Cover field options
+
+Each cover field hash may carry, besides `label`, `display_value`, `is_dynamic`, `is_editable` and
+`is_hidden`:
+
+- `data_type`: `text | email | tel | date | number | currency | boolean | table`. Formatting follows
+  it (`currency` prints the amount in words, `boolean` prints `Sí` / `No`); templates without it fall
+  back to label-based rules.
+- `hide_when_blank`: drop the row when the resolved value is blank.
+- `rows` (with `data_type: "table"`): static `[[first column, second column], ...]` pairs rendered as
+  sub-rows sharing the label cell.
+
 ### Expected Contract Interface
 
 The gem uses duck typing - your contract object should respond to:

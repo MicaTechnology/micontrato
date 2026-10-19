@@ -58,6 +58,17 @@
       border: 1px solid #000;
       width: 50%;
       vertical-align: top;
+      white-space: pre-line;
+    }
+
+    /* A `table` field: its rows share the label cell and split the value column in two. */
+    .cover-field-table-cell {
+      padding: 8px 12px;
+      border: 1px solid #000;
+      width: 25%;
+      vertical-align: middle;
+      text-align: center;
+      font-size: 10pt;
     }
 
     .clauses-section {
@@ -260,17 +271,33 @@
       <table class="cover-section-table">
         <thead>
           <tr>
-            <th colspan="2" class="cover-section-header"><%= section.name %></th>
+            <th colspan="3" class="cover-section-header"><%= section.name %></th>
           </tr>
         </thead>
         <tbody>
           <% if section.cover_fields.is_a?(Array) %>
             <% section.cover_fields.each do |field| %>
-              <% next if field['is_hidden'] %>
+              <% next unless field.is_a?(Hash) %>
+              <% if table_field?(field) %>
+                <% rows = table_rows(field) %>
+                <% next if rows.empty? %>
+                <% rows.each_with_index do |row, row_index| %>
+                  <tr class="cover-field-row">
+                    <% if row_index.zero? %>
+                      <td class="cover-field-label" rowspan="<%= rows.size %>"><%= field['label'] %></td>
+                    <% end %>
+                    <td class="cover-field-table-cell"><%= row[0] %></td>
+                    <td class="cover-field-table-cell"><%= row[1] %></td>
+                  </tr>
+                <% end %>
+                <% next %>
+              <% end %>
+              <% field_value = evaluate_field_value(field, @mica_rent) %>
+              <% next if field_hidden?(field, field_value) %>
               <tr class="cover-field-row">
                 <td class="cover-field-label"><%= field['label'] %></td>
-                <td class="cover-field-value">
-                  <%= evaluate_field_value(field, @mica_rent) %>
+                <td class="cover-field-value" colspan="2">
+                  <%= field_value %>
                   <% if field['is_editable'] && @show_admin_info %>
                     <span style="color: #999; font-size: 9pt; margin-left: 10px;">(editable)</span>
                   <% end %>
@@ -332,39 +359,42 @@
             <% end %>
 
             <%
-              tenant_name = @mica_rent&.user&.full_name || ''
-              landlord_name = @mica_rent&.landlord&.user_profile&.full_name || ''
-              guarantor = @mica_rent&.rent_application&.guarantor
-              has_guarantor = guarantor&.approved_at.present?
-              show_guarantor_box = has_guarantor || @contract&.for_joint_obligor
+              tenant = signature_participant(:tenant)
+              landlord = signature_participant(:landlord)
+              guarantor = signature_participant(:guarantor)
+              show_guarantor_box = !guarantor.nil? || @contract&.for_joint_obligor
             %>
 
-            <!-- Signature Blocks -->
+            <!-- Signature Blocks: the signer's name, email and phone print under each label,
+                 like the Google-Docs contracts, so the signatories can be verified on paper. -->
             <div class="signatures-section" style="margin-top: 80px;">
               <!-- Main parties signature block -->
               <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
                 <tr>
                   <td style="width: 50%; border: 1px solid #000; padding: 80px 20px 20px 20px; text-align: center; vertical-align: bottom;">
-                    <div style="font-size: 10pt; margin-bottom: 5px;"><%= tenant_name %></div>
                     <div style="font-weight: bold; font-size: 11pt;">"FIRMA EL ARRENDATARIO"</div>
+                    <% signature_participant_lines(tenant).each do |line| %>
+                      <div style="font-size: 10pt; font-weight: bold;"><%= line %></div>
+                    <% end %>
                   </td>
                   <td style="width: 50%; border: 1px solid #000; padding: 80px 20px 20px 20px; text-align: center; vertical-align: bottom;">
-                    <div style="font-size: 10pt; margin-bottom: 5px;"><%= landlord_name %></div>
                     <div style="font-weight: bold; font-size: 11pt;">"FIRMA EL ARRENDADOR"</div>
+                    <% signature_participant_lines(landlord).each do |line| %>
+                      <div style="font-size: 10pt; font-weight: bold;"><%= line %></div>
+                    <% end %>
                   </td>
                 </tr>
               </table>
 
               <% if show_guarantor_box %>
-                <%
-                  guarantor_name = guarantor&.full_name || ''
-                  role_label = guarantor ? guarantor_role_label(guarantor) : 'OBLIGADO SOLIDARIO'
-                %>
+                <% role_label = guarantor && !guarantor[:role].to_s.empty? ? guarantor[:role] : 'OBLIGADO SOLIDARIO' %>
                 <table style="width: 60%; margin: 0 auto; border-collapse: collapse;">
                   <tr>
                     <td style="border: 1px solid #000; padding: 80px 20px 20px 20px; text-align: center; vertical-align: bottom;">
-                      <div style="font-size: 10pt; margin-bottom: 5px;"><%= guarantor_name %></div>
                       <div style="font-weight: bold; font-size: 11pt;">"FIRMA EL <%= role_label %>"</div>
+                      <% signature_participant_lines(guarantor).each do |line| %>
+                        <div style="font-size: 10pt; font-weight: bold;"><%= line %></div>
+                      <% end %>
                     </td>
                   </tr>
                 </table>
@@ -378,7 +408,10 @@
               <p><%= clause.title %></p>
             <% end %>
 
-            <% landlord_name = @mica_rent&.landlord&.user_profile&.full_name || '' %>
+            <%
+              client = signature_participant(:client)
+              mica = signature_participant(:mica)
+            %>
 
             <div class="signatures-section" style="margin-top: 80px;">
               <table style="width: 100%; border-collapse: collapse;">
@@ -388,16 +421,20 @@
                     <div style="height: 100px;"></div>
                     <div style="border-top: 1px solid #000; margin: 0 auto; width: 85%;"></div>
                     <div style="font-weight: bold; font-size: 11pt; margin-top: 8px;">"FIRMA EL CLIENTE"</div>
-                    <div style="font-size: 10pt; margin-top: 25px;"><%= landlord_name %></div>
-                    <div style="font-weight: bold; font-size: 10pt;">POR SU PROPIO DERECHO</div>
+                    <div style="margin-top: 25px;">
+                      <% signature_participant_lines(client).each do |line| %>
+                        <div style="font-size: 10pt;"><%= line %></div>
+                      <% end %>
+                    </div>
+                    <div style="font-weight: bold; font-size: 10pt;"><%= (client && client[:subtitle]) || 'POR SU PROPIO DERECHO' %></div>
                   </td>
                   <td style="width: 50%; padding: 20px 20px 20px 40px; text-align: center; vertical-align: top; border: none;">
                     <div style="font-weight: bold; font-size: 11pt;"><%= Micontrato::Helpers::FieldHelper::MICA_SIGNATURE_LABEL %></div>
-                    <div style="font-size: 10pt;"><%= Micontrato::Helpers::FieldHelper::MICA_RAZON_SOCIAL %></div>
+                    <div style="font-size: 10pt;"><%= (mica && mica[:company]) || Micontrato::Helpers::FieldHelper::MICA_RAZON_SOCIAL %></div>
                     <div style="height: 80px;"></div>
                     <div style="border-top: 1px solid #000; margin: 0 auto; width: 85%;"></div>
                     <div style="font-weight: bold; font-size: 11pt; margin-top: 8px;">"FIRMA MICA RENT"</div>
-                    <div style="font-weight: bold; font-size: 10pt; margin-top: 25px;"><%= Micontrato::Helpers::FieldHelper::MICA_REPRESENTANTE_LEGAL %></div>
+                    <div style="font-weight: bold; font-size: 10pt; margin-top: 25px;"><%= (mica && mica[:name]) || Micontrato::Helpers::FieldHelper::MICA_REPRESENTANTE_LEGAL %></div>
                     <div style="font-weight: bold; font-size: 10pt;">REPRESENTANTE LEGAL</div>
                   </td>
                 </tr>
