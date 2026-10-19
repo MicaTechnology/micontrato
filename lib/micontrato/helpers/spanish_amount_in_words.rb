@@ -9,13 +9,15 @@ module Micontrato
     module SpanishAmountInWords
       UNITS = %w[CERO UN DOS TRES CUATRO CINCO SEIS SIETE OCHO NUEVE].freeze
       TEENS = %w[DIEZ ONCE DOCE TRECE CATORCE QUINCE DIECISÉIS DIECISIETE DIECIOCHO DIECINUEVE].freeze
-      TWENTIES = %w[VEINTE VEINTIÚN VEINTIDÓS VEINTITRÉS VEINTICUATRO VEINTICINCO VEINTISÉIS VEINTISIETE VEINTIOCHO VEINTINUEVE].freeze
-      TENS = [nil, nil, 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'].freeze
-      HUNDREDS = [nil, 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'].freeze
+      TWENTIES = %w[VEINTE VEINTIÚN VEINTIDÓS VEINTITRÉS VEINTICUATRO VEINTICINCO VEINTISÉIS VEINTISIETE
+                    VEINTIOCHO VEINTINUEVE].freeze
+      TENS = [nil, nil, "VEINTE", "TREINTA", "CUARENTA", "CINCUENTA", "SESENTA", "SETENTA", "OCHENTA", "NOVENTA"].freeze
+      HUNDREDS = [nil, "CIENTO", "DOSCIENTOS", "TRESCIENTOS", "CUATROCIENTOS", "QUINIENTOS", "SEISCIENTOS",
+                  "SETECIENTOS", "OCHOCIENTOS", "NOVECIENTOS"].freeze
 
-      CURRENCY_SINGULAR = 'PESO MEXICANO'
-      CURRENCY_PLURAL = 'PESOS MEXICANOS'
-      NUMERIC_PATTERN = /\A-?\d+(\.\d+)?\z/
+      CURRENCY_SINGULAR = "PESO MEXICANO"
+      CURRENCY_PLURAL = "PESOS MEXICANOS"
+      NUMERIC_PATTERN = /\A-?\d+(\.\d+)?\z/.freeze
 
       module_function
 
@@ -25,20 +27,8 @@ module Micontrato
         number = to_number(amount)
         return nil if number.nil?
 
-        integer_part = number.abs.floor
-        cents = ((number.abs - integer_part) * 100).round
-        if cents == 100
-          integer_part += 1
-          cents = 0
-        end
-
-        formatted = "#{number.negative? ? '-' : ''}$#{with_thousands_delimiter(integer_part)}"
-        formatted += ".#{format('%02d', cents)}" if cents.positive?
-
-        words = "#{integer_words(integer_part)}#{whole_millions?(integer_part) ? ' DE ' : ' '}#{currency_noun(integer_part)}"
-        words += " CON #{format('%02d', cents)}/100" if cents.positive?
-
-        "#{formatted} MXN (#{words})"
+        integer_part, cents = split_cents(number.abs)
+        "#{formatted_amount(number.negative?, integer_part, cents)} MXN (#{amount_words(integer_part, cents)})"
       end
 
       # Whole number in Spanish, upper case, with the apocope every amount needs because a
@@ -49,22 +39,31 @@ module Micontrato
 
         millions, remainder = number.divmod(1_000_000)
         thousands, units = remainder.divmod(1_000)
+        units_words = below_thousand(units) if units.positive?
 
-        parts = []
-        parts << (millions == 1 ? 'UN MILLÓN' : "#{below_thousand(millions)} MILLONES") if millions.positive?
-        parts << (thousands == 1 ? 'MIL' : "#{below_thousand(thousands)} MIL") if thousands.positive?
-        parts << below_thousand(units) if units.positive?
-        parts.join(' ')
+        [millions_words(millions), thousands_words(thousands), units_words].compact.join(" ")
+      end
+
+      def millions_words(millions)
+        return nil if millions.zero?
+
+        millions == 1 ? "UN MILLÓN" : "#{below_thousand(millions)} MILLONES"
+      end
+
+      def thousands_words(thousands)
+        return nil if thousands.zero?
+
+        thousands == 1 ? "MIL" : "#{below_thousand(thousands)} MIL"
       end
 
       def below_thousand(number)
-        return 'CIEN' if number == 100
+        return "CIEN" if number == 100
 
         hundreds, remainder = number.divmod(100)
         parts = []
         parts << HUNDREDS[hundreds] if hundreds.positive?
         parts << below_hundred(remainder) if remainder.positive?
-        parts.join(' ')
+        parts.join(" ")
       end
 
       def below_hundred(number)
@@ -76,11 +75,30 @@ module Micontrato
         units.zero? ? TENS[tens] : "#{TENS[tens]} Y #{UNITS[units]}"
       end
 
+      # [whole pesos, cents]; 99.999 rounds up to the next peso instead of printing 100/100.
+      def split_cents(absolute_number)
+        integer_part = absolute_number.floor
+        cents = ((absolute_number - integer_part) * 100).round
+        cents == 100 ? [integer_part + 1, 0] : [integer_part, cents]
+      end
+
+      def formatted_amount(negative, integer_part, cents)
+        sign = negative ? "-" : ""
+        formatted = "#{sign}$#{with_thousands_delimiter(integer_part)}"
+        cents.positive? ? "#{formatted}.#{format("%02d", cents)}" : formatted
+      end
+
+      # "UN MILLÓN DE PESOS", but "UN MILLÓN QUINIENTOS MIL PESOS".
+      def amount_words(integer_part, cents)
+        separator = whole_millions?(integer_part) ? " DE " : " "
+        words = "#{integer_words(integer_part)}#{separator}#{currency_noun(integer_part)}"
+        cents.positive? ? "#{words} CON #{format("%02d", cents)}/100" : words
+      end
+
       def currency_noun(integer_part)
         integer_part == 1 ? CURRENCY_SINGULAR : CURRENCY_PLURAL
       end
 
-      # "UN MILLÓN DE PESOS", but "UN MILLÓN QUINIENTOS MIL PESOS".
       def whole_millions?(integer_part)
         integer_part >= 1_000_000 && (integer_part % 1_000_000).zero?
       end
@@ -88,10 +106,10 @@ module Micontrato
       def to_number(amount)
         return amount if amount.is_a?(Numeric)
 
-        normalized = amount.to_s.gsub(/[^\d.\-]/, '')
+        normalized = amount.to_s.gsub(/[^\d.-]/, "")
         return nil unless NUMERIC_PATTERN.match?(normalized)
 
-        normalized.include?('.') ? normalized.to_f : normalized.to_i
+        normalized.include?(".") ? normalized.to_f : normalized.to_i
       end
 
       def with_thousands_delimiter(integer)

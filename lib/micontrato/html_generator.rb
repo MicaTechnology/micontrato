@@ -1,14 +1,25 @@
 # frozen_string_literal: true
 
-require 'erb'
-require_relative 'helpers/field_helper'
+require "erb"
+require_relative "helpers/field_helper"
 
 module Micontrato
+  # Renders a contract (template or generated contract) as the HTML the PDF and the Pandora
+  # previews are built from: header elements, cover sections and clauses.
   class HtmlGenerator
     include Helpers::FieldHelper
 
-    # Roles of the signature blocks and the key each one reads from `signature_participants`.
-    SIGNATURE_ROLES = %i[tenant landlord guarantor client mica].freeze
+    # Each signature role and the method that builds its fallback participant when the host
+    # passed none: the names read straight from the rent, as the blocks always printed.
+    DEFAULT_PARTICIPANT_BUILDERS = {
+      tenant: :default_tenant_participant,
+      landlord: :default_landlord_participant,
+      guarantor: :default_guarantor_participant,
+      client: :default_client_participant,
+      mica: :default_mica_participant
+    }.freeze
+
+    HEADER_SECTION = "header"
 
     # signature_participants: optional { role => { name:, email:, phone:, role:, title:, subtitle:, company: } }
     # (symbol or string keys) resolved by the host app — the e-signature signers, so a
@@ -22,9 +33,7 @@ module Micontrato
       @watermark_image = watermark_image
       @signature_participants = normalize_participants(signature_participants)
       @cover_sections = contract.cover_sections
-      all_clauses = contract.clauses.respond_to?(:reorder) ? contract.clauses.reorder(:position) : contract.clauses.sort_by(&:position)
-      @header_clauses = all_clauses.select { |c| c.section == 'header' }
-      @clauses = all_clauses.reject { |c| c.section == 'header' }
+      @header_clauses, @clauses = partition_clauses(contract.clauses)
     end
 
     def generate
@@ -33,6 +42,12 @@ module Micontrato
     end
 
     private
+
+    # Header elements first, body clauses after, both in position order.
+    def partition_clauses(clauses)
+      ordered = clauses.respond_to?(:reorder) ? clauses.reorder(:position) : clauses.sort_by(&:position)
+      ordered.partition { |clause| clause.section == HEADER_SECTION }
+    end
 
     def clause_image_src(clause)
       if clause.clause_attachment.present?
@@ -43,27 +58,30 @@ module Micontrato
     end
 
     def render_clauses(clauses)
-      html = +'' # Mutable string needed because frozen_string_literal is enabled
-      clauses.each do |clause|
-        case clause.clause_type
-        when 'image'
-          image_src = clause_image_src(clause)
-          if image_src.present?
-            html << '<div style="display: table; width: 100%; height: 355.6mm; text-align: center;">'
-            html << '<div style="display: table-cell; vertical-align: middle;">'
-            html << "<img src=\"#{image_src}\" style=\"max-width: 100%; height: auto;\" />"
-            html << '</div></div>'
-          end
-        when 'standard'
-          html << '<div class="clause">'
-          if clause.show_title && clause.title.present?
-            html << "<p><strong>#{clause.title}</strong></p>"
-          end
-          html << clause.text.to_s if clause.text.present?
-          html << '</div>'
-        end
+      clauses.map { |clause| render_header_clause(clause) }.join
+    end
+
+    def render_header_clause(clause)
+      case clause.clause_type
+      when "image" then render_image_clause(clause)
+      when "standard" then render_standard_clause(clause)
+      else ""
       end
-      html
+    end
+
+    def render_image_clause(clause)
+      image_src = clause_image_src(clause)
+      return "" unless image_src.present?
+
+      '<div style="display: table; width: 100%; height: 355.6mm; text-align: center;">' \
+        '<div style="display: table-cell; vertical-align: middle;">' \
+        "<img src=\"#{image_src}\" style=\"max-width: 100%; height: auto;\" />" \
+        "</div></div>"
+    end
+
+    def render_standard_clause(clause)
+      title = clause.show_title && clause.title.present? ? "<p><strong>#{clause.title}</strong></p>" : ""
+      "<div class=\"clause\">#{title}#{clause.text}</div>"
     end
 
     # The participant of a signature block: the one the host resolved, else the legacy
@@ -81,13 +99,24 @@ module Micontrato
     end
 
     def default_signature_participant(role)
-      case role
-      when :tenant then { name: @mica_rent&.user&.full_name.to_s, role: 'ARRENDATARIO' }
-      when :landlord then { name: @mica_rent&.landlord&.user_profile&.full_name.to_s, role: 'ARRENDADOR' }
-      when :client then { name: @mica_rent&.landlord&.user_profile&.full_name.to_s }
-      when :guarantor then default_guarantor_participant
-      when :mica then { name: Helpers::FieldHelper::MICA_REPRESENTANTE_LEGAL, company: Helpers::FieldHelper::MICA_RAZON_SOCIAL }
-      end
+      builder = DEFAULT_PARTICIPANT_BUILDERS[role]
+      builder && send(builder)
+    end
+
+    def default_tenant_participant
+      { name: @mica_rent&.user&.full_name.to_s, role: "ARRENDATARIO" }
+    end
+
+    def default_landlord_participant
+      { name: legacy_landlord_name, role: "ARRENDADOR" }
+    end
+
+    def default_client_participant
+      { name: legacy_landlord_name }
+    end
+
+    def default_mica_participant
+      { name: Helpers::FieldHelper::MICA_REPRESENTANTE_LEGAL, company: Helpers::FieldHelper::MICA_RAZON_SOCIAL }
     end
 
     def default_guarantor_participant
@@ -95,6 +124,11 @@ module Micontrato
       return nil unless guarantor&.approved_at.present?
 
       { name: guarantor.full_name.to_s, role: guarantor_role_label(guarantor) }
+    end
+
+    def legacy_landlord_name
+      landlord_profile = @mica_rent&.landlord&.user_profile
+      landlord_profile&.full_name.to_s
     end
 
     def normalize_participants(participants)
@@ -108,7 +142,7 @@ module Micontrato
     end
 
     def template_path
-      File.join(__dir__, 'templates', 'contract.html.erb')
+      File.join(__dir__, "templates", "contract.html.erb")
     end
   end
 end
