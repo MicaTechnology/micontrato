@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-28
+
+- Every cover value prints in capitals (static text, resolved values, table rows), as the
+  Google-Docs contracts do; a value whose `data_type` is `email`, or that is an email address,
+  keeps its case. The editable `raw_value` the host apps keep is not affected.
+- The signer name under each signature line prints in capitals; email and phone as given.
+- `data_type: "template"` with `display_format`: a row prints free text with `{{ value }}` /
+  `{{ some.path }}` tokens resolved from the rent, each with an optional `| formatter` (the data
+  types, plus `amount` and `words` for the two halves of a currency, now exposed as
+  `SpanishAmountInWords.money_amount` / `.money_words`).
+- `data_type: "table"` and `rows` (1.1.0) are gone: a summary with fixed rows is a cover section of
+  static fields.
+
 ## [1.1.0] - 2026-10-16
 
 Parity of the inhouse contract document with the Google-Docs one:

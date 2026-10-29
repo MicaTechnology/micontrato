@@ -69,12 +69,17 @@ Micontrato::HtmlGenerator.new(
 Each cover field hash may carry, besides `label`, `display_value`, `is_dynamic`, `is_editable` and
 `is_hidden`:
 
-- `data_type`: `text | email | tel | date | number | currency | boolean | table`. Formatting follows
+- `data_type`: `text | email | tel | date | number | currency | boolean | template`. Formatting follows
   it (`currency` prints the amount in words, `boolean` prints `Sí` / `No`); templates without it fall
-  back to label-based rules.
+  back to label-based rules. Every value then prints in capitals, except an `email` (or any value
+  that is an email address), which keeps its case.
 - `hide_when_blank`: drop the row when the resolved value is blank.
-- `rows` (with `data_type: "table"`): static `[[first column, second column], ...]` pairs rendered as
-  sub-rows sharing the label cell.
+- `display_format` (with `data_type: "template"`): free text with `{{ value }}` (the field's own display
+  value) or `{{ a.dotted.path }}` tokens resolved from the rent, each with an optional `| formatter`
+  (`currency`, `date`, `boolean`, `number`, `text`, `email`, `tel`, or `amount` / `words` for the two
+  halves of a currency), e.g. `{{ value | amount }} más IVA ({{ value | words }})`. A template that
+  names its own display value prints nothing while that value is blank; a wrong path or formatter
+  prints `[Error: ...]`.
 
 ### Expected Contract Interface
 
