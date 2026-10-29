@@ -2,6 +2,9 @@
 
 require_relative "spanish_ordinal"
 require_relative "spanish_amount_in_words"
+require_relative "document_text"
+require_relative "label_rules"
+require_relative "display_template"
 
 module Micontrato
   module Helpers
@@ -10,6 +13,9 @@ module Micontrato
     # viewer's PopulateCoverFields), so screen and paper always print the same text.
     module FieldHelper
       include SpanishOrdinal
+      include DocumentText
+      include LabelRules
+      include DisplayTemplate
 
       MICA_RAZON_SOCIAL = "MCTC PLATAFORMA DE RENTAS, S.A.P.I. DE C.V."
       MICA_REPRESENTANTE_LEGAL = "JULIAN STASTNY"
@@ -21,13 +27,13 @@ module Micontrato
         "aval" => "AVAL"
       }.freeze
 
-      # Cover field `data_type` values the renderers understand. A `table` field is static:
-      # its `rows` (array of [first column, second column] pairs) print as sub-rows that
-      # share the label cell (e.g. the overdue-interest summary by day ranges).
+      # Cover field `data_type` values, the display formatter of a row. A `template` field
+      # prints its `display_format` with the `{{ }}` tokens resolved (DisplayTemplate).
       DATA_TYPE_BOOLEAN = "boolean"
       DATA_TYPE_DATE = "date"
       DATA_TYPE_CURRENCY = "currency"
-      DATA_TYPE_TABLE = "table"
+      DATA_TYPE_EMAIL = "email"
+      DATA_TYPE_TEMPLATE = "template"
 
       TRUTHY_VALUES = [true, "true", "Sí", "Si", "sí", "si", "1", 1, "yes", "Yes"].freeze
       BOOLEAN_LABELS = { true => "Sí", false => "No" }.freeze
@@ -49,34 +55,29 @@ module Micontrato
 
       MONTH_ABBREVIATIONS = %w[Ene Feb Mar Abr May Jun Jul Ago Sep Oct Nov Dic].freeze
 
-      # Label rules for templates that predate `data_type` (regexp sources, case-insensitive).
-      DATE_LABEL_PATTERN = /INICIO DE LA VIGENCIA|FIN DE LA VIGENCIA|FECHA DE ENTREGA/i.freeze
-      CURRENCY_LABEL_PATTERN = Regexp.new(
-        ["PRECIO MENSUAL", "CUOTA DE MANTENIMIENTO", "RENTA MENSUAL INTEGRAL", "DEPÓSITO EN GARANTÍA",
-         "RENTAS? ADELANTADAS?"].join("|"),
-        Regexp::IGNORECASE
-      ).freeze
-      PROTECTION_LABEL_PATTERN = /SERVICIO DE PROTECCIÓN/i.freeze
-      DURATION_LABEL_PATTERN = /DURACIÓN DEL ARRENDAMIENTO/i.freeze
-      PAYMENT_METHOD_LABEL_PATTERN = /FORMA DE PAGO/i.freeze
-
       def guarantor_role_label(guarantor)
         GUARANTOR_ROLE_LABELS[guarantor&.guarantor_type] || "OBLIGADO SOLIDARIO"
       end
 
       # A static field prints its display_value; a dynamic one resolves it as a dotted method
-      # path from mica_rent ("rent_landlord_detail.full_name", "contract_document_values.inventory").
+      # path from mica_rent ("rent_landlord_detail.full_name", "contract_document_values.inventory");
+      # a template field prints its display_format with every token resolved the same way.
       def evaluate_field_value(field, mica_rent)
-        return field["display_value"] unless field["is_dynamic"]
+        return render_display_template(field, mica_rent) if template_field?(field)
+        return document_text(field["display_value"]) unless field["is_dynamic"]
         return "" unless field["display_value"].present?
 
         begin
-          result = field["display_value"].split(".").reduce(mica_rent) do |object, method_name|
-            object&.public_send(method_name)
-          end
-          format_field_value(result, field["label"], field["data_type"])
+          value = resolve_display_path(mica_rent, field["display_value"])
+          format_field_value(value, field["label"], field["data_type"])
         rescue StandardError => e
           "[Error: #{e.message}]"
+        end
+      end
+
+      def resolve_display_path(mica_rent, path)
+        path.to_s.split(".").reduce(mica_rent) do |object, method_name|
+          object&.public_send(method_name)
         end
       end
 
@@ -88,17 +89,17 @@ module Micontrato
         field["hide_when_blank"] && value.blank?
       end
 
-      def table_field?(field)
-        field["data_type"] == DATA_TYPE_TABLE
-      end
-
-      def table_rows(field)
-        Array(field["rows"]).grep(Array).map { |row| row.map(&:to_s) }
-      end
-
-      # The explicit data_type wins; templates that predate it fall back to the label. A real
-      # boolean prints Sí/No whatever the declared type (a copied template may lack it).
+      # The explicit data_type wins; templates that predate it fall back to the label
+      # (LabelRules). A real boolean prints Sí/No whatever the declared type (a copied template
+      # may lack it). The text then goes in capitals (DocumentText), except an email.
       def format_field_value(value, label, data_type = nil)
+        text = format_typed_value(value, label, data_type)
+        return text if data_type == DATA_TYPE_EMAIL
+
+        document_text(text)
+      end
+
+      def format_typed_value(value, label, data_type)
         return boolean_label(value) if data_type == DATA_TYPE_BOOLEAN || [true, false].include?(value)
         return "" if value.blank?
 
@@ -106,17 +107,6 @@ module Micontrato
         when DATA_TYPE_DATE then format_date(value)
         when DATA_TYPE_CURRENCY then format_currency(value)
         else format_by_label(value, label)
-        end
-      end
-
-      def format_by_label(value, label)
-        case label
-        when DATE_LABEL_PATTERN then format_date(value)
-        when CURRENCY_LABEL_PATTERN then format_currency(value)
-        when PROTECTION_LABEL_PATTERN then format_protection_type(value)
-        when DURATION_LABEL_PATTERN then format_duration(value)
-        when PAYMENT_METHOD_LABEL_PATTERN then format_payment_method(value)
-        else value.to_s
         end
       end
 

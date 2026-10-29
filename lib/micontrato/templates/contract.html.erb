@@ -61,16 +61,6 @@
       white-space: pre-line;
     }
 
-    /* A `table` field: its rows share the label cell and split the value column in two. */
-    .cover-field-table-cell {
-      padding: 8px 12px;
-      border: 1px solid #000;
-      width: 25%;
-      vertical-align: middle;
-      text-align: center;
-      font-size: 10pt;
-    }
-
     .clauses-section {
       margin-top: 20px;
     }
@@ -271,32 +261,18 @@
       <table class="cover-section-table">
         <thead>
           <tr>
-            <th colspan="3" class="cover-section-header"><%= section.name %></th>
+            <th colspan="2" class="cover-section-header"><%= section.name %></th>
           </tr>
         </thead>
         <tbody>
           <% if section.cover_fields.is_a?(Array) %>
             <% section.cover_fields.each do |field| %>
               <% next unless field.is_a?(Hash) %>
-              <% if table_field?(field) %>
-                <% rows = table_rows(field) %>
-                <% next if rows.empty? %>
-                <% rows.each_with_index do |row, row_index| %>
-                  <tr class="cover-field-row">
-                    <% if row_index.zero? %>
-                      <td class="cover-field-label" rowspan="<%= rows.size %>"><%= field['label'] %></td>
-                    <% end %>
-                    <td class="cover-field-table-cell"><%= row[0] %></td>
-                    <td class="cover-field-table-cell"><%= row[1] %></td>
-                  </tr>
-                <% end %>
-                <% next %>
-              <% end %>
               <% field_value = evaluate_field_value(field, @mica_rent) %>
               <% next if field_hidden?(field, field_value) %>
               <tr class="cover-field-row">
                 <td class="cover-field-label"><%= field['label'] %></td>
-                <td class="cover-field-value" colspan="2">
+                <td class="cover-field-value">
                   <%= field_value %>
                   <% if field['is_editable'] && @show_admin_info %>
                     <span style="color: #999; font-size: 9pt; margin-left: 10px;">(editable)</span>

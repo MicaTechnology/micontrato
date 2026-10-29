@@ -90,12 +90,13 @@ module Micontrato
       @signature_participants.fetch(role) { default_signature_participant(role) }
     end
 
-    # Name, email and phone of a signer, blank lines dropped — what prints under the
-    # signature line, like the Google-Docs contracts.
+    # Name (in capitals), email and phone of a signer, blank lines dropped — what prints
+    # under the signature line, like the Google-Docs contracts.
     def signature_participant_lines(participant)
       return [] if participant.nil?
 
-      [participant[:name], participant[:email], participant[:phone]].map { |line| line.to_s.strip }.reject(&:empty?)
+      lines = [participant[:name].to_s.upcase, participant[:email], participant[:phone]]
+      lines.map { |line| line.to_s.strip }.reject(&:empty?)
     end
 
     def default_signature_participant(role)

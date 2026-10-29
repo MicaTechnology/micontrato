@@ -27,8 +27,25 @@ module Micontrato
         number = to_number(amount)
         return nil if number.nil?
 
+        "#{money_amount(number)} (#{money_words(number)})"
+      end
+
+      # The figures half of #money: "$6,300 MXN".
+      def money_amount(amount)
+        number = to_number(amount)
+        return nil if number.nil?
+
         integer_part, cents = split_cents(number.abs)
-        "#{formatted_amount(number.negative?, integer_part, cents)} MXN (#{amount_words(integer_part, cents)})"
+        "#{formatted_amount(number.negative?, integer_part, cents)} MXN"
+      end
+
+      # The words half of #money: "SEIS MIL TRESCIENTOS PESOS MEXICANOS".
+      def money_words(amount)
+        number = to_number(amount)
+        return nil if number.nil?
+
+        integer_part, cents = split_cents(number.abs)
+        amount_words(integer_part, cents)
       end
 
       # Whole number in Spanish, upper case, with the apocope every amount needs because a
