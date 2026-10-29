@@ -33,7 +33,7 @@ module Micontrato
       DATA_TYPE_DATE = "date"
       DATA_TYPE_CURRENCY = "currency"
       DATA_TYPE_EMAIL = "email"
-      DATA_TYPE_TEMPLATE = "template"
+      DATA_TYPE_TEMPLATE = DisplayTemplate::DATA_TYPE_TEMPLATE
 
       TRUTHY_VALUES = [true, "true", "Sí", "Si", "sí", "si", "1", 1, "yes", "Yes"].freeze
       BOOLEAN_LABELS = { true => "Sí", false => "No" }.freeze

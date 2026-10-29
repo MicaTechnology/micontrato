@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-29
+
+- Fix: `template_field?` raised `NameError` (`DisplayTemplate::DATA_TYPE_TEMPLATE`) on every cover
+  field, since the constant lived in `FieldHelper` and was out of the mixin's lexical scope. The
+  constant now lives in `DisplayTemplate`; `FieldHelper::DATA_TYPE_TEMPLATE` still resolves.
+
 ## [1.2.0] - 2026-10-28
 
 - Every cover value prints in capitals (static text, resolved values, table rows), as the

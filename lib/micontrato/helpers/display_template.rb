@@ -12,6 +12,7 @@ module Micontrato
     # it as on any other field; a wrong path or formatter prints "[Error: ...]". Mixed into
     # FieldHelper, which provides the formatters and the path resolver.
     module DisplayTemplate
+      DATA_TYPE_TEMPLATE = "template"
       DISPLAY_FORMAT = "display_format"
       SELF_TOKEN = "value"
       TOKEN_PATTERN = /\{\{\s*([a-z][a-z0-9_.]*)\s*(?:\|\s*([a-z_]+)\s*)?\}\}/.freeze
