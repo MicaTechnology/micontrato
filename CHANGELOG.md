@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [1.2.2] - 2026-11-10
+
+- An image clause spans the document width (`width: 100%`) instead of printing at its natural
+  size: a small upload (the key points page) no longer sits small and off-centre on its page.
+
 ## [1.2.1] - 2026-10-29
 
 - Fix: `template_field?` raised `NameError` (`DisplayTemplate::DATA_TYPE_TEMPLATE`) on every cover
